@@ -134,6 +134,18 @@ const qs = s => document.querySelector(s);
 const sol = n => 'S/ '+(Math.round((+n||0)*100)/100).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
 const pctF = n => ((+n||0)*100).toFixed(1)+'%';
 const getInt = p => (+p.monto)*(+p.interesPct/100)*(+p.meses);
+// Mora: 3% mensual sobre el monto por cada mes vencido (mínimo 0)
+function getMora(p){
+  if(estadoEfectivo(p)!=='VENCIDO') return 0;
+  const hoy=new Date(hoyStr());
+  const venc=new Date(p.fechaVenc);
+  const diasVencido=Math.max(0,Math.round((hoy-venc)/(1000*60*60*24)));
+  const mesesVencido=diasVencido/30;
+  return +(+p.monto * 0.03 * mesesVencido).toFixed(2);
+}
+function getTotalConMora(p){
+  return +p.monto + getInt(p) + getMora(p);
+}
 function hoyStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 let _tt; function toast(m,d=2800){const t=qs('#toast');t.textContent=m;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),d);}
 
@@ -357,19 +369,30 @@ function estadoEfectivo(p){
 }
 function calcular(){
   const{aportes,prestamos,pagos,socios}=STATE;
+  // Capital base: solo aportes de tipo NO intereses
+  const aportesBase=aportes.filter(a=>a.tipo!=='Intereses distribuidos');
+  const aportesInt=aportes.filter(a=>a.tipo==='Intereses distribuidos');
   const totalCap=aportes.reduce((s,a)=>s+(+a.monto),0);
+  const totalCapBase=aportesBase.reduce((s,a)=>s+(+a.monto),0);
   const prestAct=prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE').reduce((s,p)=>s+(+p.monto),0);
   const cajaCap=totalCap-prestAct;
   const intCob=prestamos.filter(p=>estadoEfectivo(p)==='PAGADO').reduce((s,p)=>s+getInt(p),0);
-  const reserva=intCob*.10, dist=intCob-reserva;
+  // Sin reserva — intereses completos se distribuyen
+  const dist=intCob;
+  // Intereses ya distribuidos (registrados como aportes de intereses)
+  const intDistribuidos=aportesInt.reduce((s,a)=>s+(+a.monto),0);
+  const intPendDist=Math.max(0,dist-intDistribuidos);
   const socData=socios.map(soc=>{
-    const tot=aportes.filter(a=>a.socio===soc).reduce((s,a)=>s+(+a.monto),0);
-    const pp=totalCap>0?tot/totalCap:0;
+    const tot=aportesBase.filter(a=>a.socio===soc).reduce((s,a)=>s+(+a.monto),0);
+    const pp=totalCapBase>0?tot/totalCapBase:0;
     const gan=dist*pp;
+    const intYaDist=aportesInt.filter(a=>a.socio===soc).reduce((s,a)=>s+(+a.monto),0);
     const rec=pagos.filter(p=>p.socio===soc).reduce((s,p)=>s+(+p.monto),0);
-    return{socio:soc,totalAp:tot,pct:pp,ganado:gan,recibido:rec,pendiente:gan-rec};
+    return{socio:soc,totalAp:aportesBase.filter(a=>a.socio===soc).reduce((s,a)=>s+(+a.monto),0),
+      pct:pp,ganado:gan,intYaDist,recibido:rec,pendiente:gan-intYaDist};
   });
-  return{totalCap,prestAct,cajaCap,intCob,reserva,dist,
+  return{totalCap,totalCapBase,prestAct,cajaCap,intCob,reserva:0,dist,
+    intDistribuidos,intPendDist,
     pagados:prestamos.filter(p=>estadoEfectivo(p)==='PAGADO').length,
     pendientes:prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE').length,
     vencidos:prestamos.filter(p=>estadoEfectivo(p)==='VENCIDO').length,
@@ -430,7 +453,7 @@ function renderHeader(st){
   </div>
   <div style="background:var(--navy2);display:flex;overflow-x:auto;border-bottom:1px solid rgba(255,255,255,.08)">
     ${[['dashboard','📊 Dashboard',''],['prestamos','💰 Préstamos',st.pendientes>0?`<span style="background:#BF360C;color:white;border-radius:10px;font-size:9px;padding:1px 6px;margin-left:4px">${st.pendientes}</span>`:''],
-      ['aportes','👥 Aportes',''],['distribucion','📈 Distribución',''],['pagos','💳 Pagos',''],['calendario','📅 Calendario','']
+      ['aportes','👥 Aportes',''],['distribucion','📈 Distribución',''],['pagos','💳 Pagos',''],['resumen','📆 Resumen Mensual',''],['calendario','📅 Calendario','']
     ].map(([id,lbl,ex])=>`<button class="nav-btn" data-view="${id}" style="padding:11px 18px;border:none;background:transparent;border-bottom:3px solid ${STATE.view===id?'var(--goldb)':'transparent'};color:${STATE.view===id?'white':'rgba(255,255,255,.5)'};cursor:pointer;font-size:12.5px;font-weight:${STATE.view===id?'600':'400'};white-space:nowrap">${lbl}${ex}</button>`).join('')}
   </div>
   ${STATE.aiText?`<div style="background:var(--navy2);padding:12px 20px;border-bottom:1px solid rgba(255,255,255,.1)">
@@ -453,7 +476,7 @@ function renderDashboard(st){
       ${[['Capital Total',sol(st.totalCap),'Suma de aportes','var(--navy)'],
          ['Capital en Caja',sol(st.cajaCap),'Disponible','var(--teal)'],
          ['Intereses Cobrados',sol(st.intCob),'Préstamos PAGADOS','var(--green)'],
-         ['Utilidades Distribuibles',sol(st.dist),'Reserva: '+sol(st.reserva),'var(--gold)']
+         ['Utilidades Distribuibles',sol(st.dist),'100% se reparte entre socios','var(--gold)']
         ].map(([t,v,s,c])=>`<div class="kpi" style="border-top:3px solid ${c}">
         <p style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">${t}</p>
         <p style="font-size:20px;font-weight:600;font-family:var(--mono);margin-bottom:4px">${v}</p>
@@ -494,7 +517,7 @@ function renderPrestamos(){
       <button class="btn btn-navy" id="btn-np">＋ Nuevo préstamo</button>
     </div>
     <div class="card"><div style="overflow-x:auto"><table>
-      <thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th class="r">Monto</th><th class="r">Interés%</th><th class="r">Total a Cobrar</th><th>Vencimiento</th><th>Estado</th><th class="c">Acciones</th></tr></thead>
+      <thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th class="r">Monto</th><th class="r">Interés%</th><th class="r">Interés S/</th><th class="r">Mora S/</th><th class="r">Total a Cobrar</th><th>Vencimiento</th><th>Estado</th><th class="c">Acciones</th></tr></thead>
       <tbody>${prs.map((p,i)=>{
         const ef=estadoEfectivo(p);
         const isHoy=ef==='PENDIENTE'&&p.fechaVenc===hoy;
@@ -504,11 +527,14 @@ function renderPrestamos(){
           <td class="g">${p.fecha}</td>
           <td class="r mono">${sol(p.monto)}</td>
           <td class="r g">${p.interesPct}%</td>
-          <td class="r b mono">${sol(+p.monto+getInt(p))}</td>
+          <td class="r mono">${sol(getInt(p))}</td>
+          <td class="r mono" style="color:${getMora(p)>0?'var(--red)':'var(--text3)'}">${getMora(p)>0?sol(getMora(p)):'-'}</td>
+          <td class="r b mono" style="color:${getMora(p)>0?'var(--red)':'inherit'}">${sol(getTotalConMora(p))}</td>
           <td class="g" style="color:${ef==='VENCIDO'?'var(--red)':isHoy?'var(--amb)':''};font-weight:${isHoy||ef==='VENCIDO'?600:400}">${p.fechaVenc}${isHoy?' ⚠️':''}</td>
           <td>${badge(p)}</td>
           <td class="c"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
             <button class="edit-btn" data-edit-pr="${p.id}">✏️</button>
+            ${p.comprobante?`<button class="btn btn-outline btn-sm" data-ver-comp="${p.id}" title="Ver comprobante">🖼</button>`:''}
             ${ef==='PENDIENTE'?`<button class="btn btn-green btn-sm" data-pagar="${p.id}">✓</button><button class="btn btn-red btn-sm" data-vencer="${p.id}">Vencido</button>`:''}
             <button class="del-btn" data-del-pr="${p.id}">🗑</button>
           </div></td>
@@ -555,31 +581,40 @@ function renderAportes(){
 function renderDistribucion(st){
   return`<div style="padding:20px">
     <p style="font-size:18px;font-weight:600;margin-bottom:3px">Distribución de Utilidades</p>
-    <p style="font-size:12px;color:var(--text3);margin-bottom:18px">Calculado según cobros y aportes</p>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:18px">Los intereses cobrados se reparten al 100% según el aporte de cada socio</p>
     <div class="card card-pad" style="margin-bottom:16px">
-      ${[['Intereses cobrados (PAGADOS)',st.intCob,'var(--green)'],['(−) Reserva 10%',-st.reserva,'var(--amb)']].map(([l,v,c])=>
-        `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border2)">
-          <span style="color:var(--text2)">${l}</span>
-          <span style="font-weight:600;font-family:var(--mono);color:${c}">${sol(Math.abs(v))}</span>
-        </div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border2)">
+        <span style="color:var(--text2)">Total intereses cobrados (préstamos PAGADOS)</span>
+        <span style="font-weight:600;font-family:var(--mono);color:var(--green)">${sol(st.intCob)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border2)">
+        <span style="color:var(--text2)">Ya distribuidos como aportes de intereses</span>
+        <span style="font-weight:600;font-family:var(--mono);color:var(--teal)">${sol(st.intDistribuidos)}</span>
+      </div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:12px 16px;background:var(--goldl);border:2px solid var(--gold);border-radius:10px">
-        <span style="font-size:14px;font-weight:600;color:var(--navy)">Utilidades distribuibles</span>
-        <span style="font-size:22px;font-weight:600;font-family:var(--mono);color:var(--gold)">${sol(st.dist)}</span>
+        <div>
+          <span style="font-size:14px;font-weight:600;color:var(--navy)">Pendiente de distribuir</span>
+          <p style="font-size:11px;color:var(--text3);margin-top:2px">Se agregará como aporte de intereses a cada socio</p>
+        </div>
+        <div style="text-align:right">
+          <span style="font-size:22px;font-weight:600;font-family:var(--mono);color:var(--gold);display:block">${sol(st.intPendDist)}</span>
+          ${st.intPendDist>0?`<button class="btn btn-navy btn-sm" id="btn-distribuir" style="margin-top:6px;font-size:11px">⚡ Distribuir ahora</button>`:'<span style="font-size:11px;color:var(--green)">✅ Todo distribuido</span>'}
+        </div>
       </div>
     </div>
     <div class="card"><div style="overflow-x:auto"><table>
-      <thead><tr><th>Socio</th><th class="r">Aportó</th><th class="r">%</th><th class="r">Le Corresponde</th><th class="r">Ya Recibió</th><th class="r">Saldo</th></tr></thead>
+      <thead><tr><th>Socio</th><th class="r">Capital Aportado</th><th class="r">%</th><th class="r">Le Corresponde</th><th class="r">Ya Distribuido</th><th class="r">Pendiente</th></tr></thead>
       <tbody>${st.socios.map((s,i)=>`<tr class="${i%2===0?'row-even':'row-alt'}">
         <td class="b" style="color:var(--navy)">${s.socio}</td>
         <td class="r mono">${sol(s.totalAp)}</td>
         <td class="r"><div class="pct-bar-wrap"><div class="pct-bar-bg"><div class="pct-bar-fill" style="width:${(s.pct*100).toFixed(0)}%"></div></div><span style="font-size:11px;font-family:var(--mono)">${pctF(s.pct)}</span></div></td>
         <td class="r b mono" style="color:var(--green)">${sol(s.ganado)}</td>
-        <td class="r mono" style="color:var(--teal)">${sol(s.recibido)}</td>
+        <td class="r mono" style="color:var(--teal)">${sol(s.intYaDist)}</td>
         <td class="r b mono" style="color:${s.pendiente>0?'var(--gold)':'var(--green)'}">${sol(s.pendiente)}</td>
       </tr>`).join('')}</tbody>
-      <tfoot><tr class="tfoot-row"><td>TOTAL</td><td class="r mono">${sol(st.socios.reduce((s,x)=>s+x.totalAp,0))}</td><td class="r">100%</td><td class="r mono">${sol(st.dist)}</td><td class="r mono">${sol(st.socios.reduce((s,x)=>s+x.recibido,0))}</td><td class="r mono" style="color:#D4AF37">${sol(st.socios.reduce((s,x)=>s+x.pendiente,0))}</td></tr></tfoot>
+      <tfoot><tr class="tfoot-row"><td>TOTAL</td><td class="r mono">${sol(st.socios.reduce((s,x)=>s+x.totalAp,0))}</td><td class="r">100%</td><td class="r mono">${sol(st.dist)}</td><td class="r mono">${sol(st.intDistribuidos)}</td><td class="r mono" style="color:#D4AF37">${sol(st.intPendDist)}</td></tr></tfoot>
     </table></div></div>
-    <p class="tip-box">💡 Ve a <strong>Pagos</strong> para registrar distribuciones a socios.</p>
+    <div class="info-box info-blue" style="margin-top:14px">💡 Al hacer clic en <strong>"Distribuir ahora"</strong> se agrega automáticamente un aporte de tipo <em>"Intereses distribuidos"</em> a cada socio según su porcentaje. Esto aumenta su capital en la cooperativa.</div>
   </div>`;
 }
 
@@ -601,6 +636,7 @@ function renderPagos(st){
         <td style="font-size:11.5px">${p.concepto}</td><td class="g">${p.notas||''}</td>
         <td class="c"><div style="display:flex;gap:4px;justify-content:center">
           <button class="edit-btn" data-edit-pg="${p.id}">✏️</button>
+          ${p.comprobante?`<button class="btn btn-outline btn-sm" data-ver-comp-pg="${p.id}" title="Ver comprobante">🖼</button>`:''}
           <button class="del-btn" data-del-pg="${p.id}">🗑</button>
         </div></td>
       </tr>`).join('')}</tbody>
@@ -608,6 +644,84 @@ function renderPagos(st){
   </div>`;
 }
 
+function renderResumenMensual(){
+  const mesesData={};
+  STATE.prestamos.forEach(p=>{
+    const ef=estadoEfectivo(p);
+    if(p.fecha){
+      const k=p.fecha.slice(0,7);
+      if(!mesesData[k])mesesData[k]={mes:k,prestado:0,cobrado:0,intereses:0,mora:0,nPrestamos:0,nCobrados:0};
+      mesesData[k].prestado+= +p.monto;
+      mesesData[k].nPrestamos++;
+    }
+    if(ef==='PAGADO'&&p.fechaVenc){
+      const k=p.fechaVenc.slice(0,7);
+      if(!mesesData[k])mesesData[k]={mes:k,prestado:0,cobrado:0,intereses:0,mora:0,nPrestamos:0,nCobrados:0};
+      mesesData[k].cobrado+= +p.monto;
+      mesesData[k].intereses+= getInt(p);
+      mesesData[k].nCobrados++;
+    }
+    if(ef==='VENCIDO'&&p.fechaVenc){
+      const k=p.fechaVenc.slice(0,7);
+      if(!mesesData[k])mesesData[k]={mes:k,prestado:0,cobrado:0,intereses:0,mora:0,nPrestamos:0,nCobrados:0};
+      mesesData[k].mora+= getMora(p);
+    }
+  });
+  const filas=Object.values(mesesData).sort((a,b)=>a.mes<b.mes?-1:1);
+  const MESES_N=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const fmtMes=k=>{const[y,m]=k.split('-');return MESES_N[+m-1]+' '+y;};
+  const totPrestado=filas.reduce((s,f)=>s+f.prestado,0);
+  const totCobrado=filas.reduce((s,f)=>s+f.cobrado,0);
+  const totInt=filas.reduce((s,f)=>s+f.intereses,0);
+  const totMora=filas.reduce((s,f)=>s+f.mora,0);
+
+  if(filas.length===0) return `<div style="padding:20px"><p style="font-size:18px;font-weight:600;margin-bottom:3px">📆 Resumen Mensual</p><div class="card" style="text-align:center;padding:50px 20px"><div style="font-size:36px;margin-bottom:12px">📆</div><p style="font-weight:600;color:var(--text2)">Sin datos por mes aún</p></div></div>`;
+
+  const kpis = [
+    ['Total Prestado', sol(totPrestado), 'Suma de todos los préstamos', 'var(--navy)'],
+    ['Total Cobrado', sol(totCobrado), 'Capital recuperado', 'var(--teal)'],
+    ['Intereses Generados', sol(totInt), 'De préstamos cobrados', 'var(--green)'],
+    ['Mora Acumulada', sol(totMora), 'Préstamos vencidos', 'var(--red)'],
+  ];
+
+  const filasHtml = filas.map((f,i)=>`
+    <tr class="${i%2===0?'row-even':'row-alt'}">
+      <td class="b" style="color:var(--navy)">${fmtMes(f.mes)}</td>
+      <td class="r g">${f.nPrestamos} préstamos</td>
+      <td class="r mono">${sol(f.prestado)}</td>
+      <td class="r g">${f.nCobrados} cobrados</td>
+      <td class="r mono" style="color:var(--teal)">${sol(f.cobrado)}</td>
+      <td class="r b mono" style="color:var(--green)">${sol(f.intereses)}</td>
+      <td class="r mono" style="color:${f.mora>0?'var(--red)':'var(--text3)'}">${f.mora>0?sol(f.mora):'-'}</td>
+      <td class="r b mono" style="color:var(--gold)">${sol(f.intereses+f.mora)}</td>
+    </tr>`).join('');
+
+  return `<div style="padding:20px">
+    <p style="font-size:18px;font-weight:600;margin-bottom:3px">📆 Resumen Mensual</p>
+    <p style="font-size:12px;color:var(--text3);margin-bottom:18px">Actividad por mes</p>
+    <div class="g4" style="margin-bottom:16px">
+      ${kpis.map(([t,v,s,col])=>`<div class="kpi" style="border-top:3px solid ${col}">
+        <p style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">${t}</p>
+        <p style="font-size:18px;font-weight:600;font-family:var(--mono);margin-bottom:4px">${v}</p>
+        <p style="font-size:11px;color:var(--text3)">${s}</p>
+      </div>`).join('')}
+    </div>
+    <div class="card"><div style="overflow-x:auto"><table>
+      <thead><tr><th>Mes</th><th class="r">Préstamos</th><th class="r">Monto Prestado</th><th class="r">Cobrados</th><th class="r">Capital Recuperado</th><th class="r">Intereses</th><th class="r">Mora</th><th class="r">Ganancia</th></tr></thead>
+      <tbody>${filasHtml}</tbody>
+      <tfoot><tr class="tfoot-row">
+        <td>TOTAL</td>
+        <td class="r">${STATE.prestamos.length}</td>
+        <td class="r mono">${sol(totPrestado)}</td>
+        <td class="r">${STATE.prestamos.filter(p=>estadoEfectivo(p)==='PAGADO').length}</td>
+        <td class="r mono">${sol(totCobrado)}</td>
+        <td class="r mono" style="color:#4ade80">${sol(totInt)}</td>
+        <td class="r mono" style="color:#f87171">${sol(totMora)}</td>
+        <td class="r mono" style="color:#D4AF37">${sol(totInt+totMora)}</td>
+      </tr></tfoot>
+    </table></div></div>
+  </div>`;
+}
 const MESES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 function renderCalendario(){
   const hoy=hoyStr(),year=STATE.calYear,month=STATE.calMonth;
@@ -694,10 +808,31 @@ function render(){
   else if(STATE.view==='aportes')       html+=renderAportes();
   else if(STATE.view==='distribucion')  html+=renderDistribucion(st);
   else if(STATE.view==='pagos')         html+=renderPagos(st);
+  else if(STATE.view==='resumen')        html+=renderResumenMensual();
   else if(STATE.view==='calendario')    html+=renderCalendario();
   html+='</div>';
   root.innerHTML=html;
   bindEvents(st);
+}
+
+function distribuirIntereses(){
+  const st=calcular();
+  if(st.intPendDist<=0){toast('✅ No hay intereses pendientes de distribuir');return;}
+  if(!confirm(`¿Distribuir ${sol(st.intPendDist)} entre los ${STATE.socios.length} socios como aportes de intereses?`))return;
+  const fecha=hoyStr();
+  const nuevosAportes=st.socios
+    .filter(s=>s.pendiente>0)
+    .map(s=>({
+      id:Date.now()+Math.random(),
+      fecha,
+      socio:s.socio,
+      monto:+s.pendiente.toFixed(2),
+      tipo:'Intereses distribuidos',
+      concepto:'Distribución automática de intereses'
+    }));
+  STATE.aportes=[...STATE.aportes,...nuevosAportes];
+  guardar();render();
+  toast(`✅ Intereses distribuidos entre ${nuevosAportes.length} socios`);
 }
 
 function bindEvents(st){
@@ -706,6 +841,7 @@ function bindEvents(st){
   qs('#btn-export')?.addEventListener('click',exportarExcel);
   qs('#btn-config')?.addEventListener('click',()=>abrirModal('config'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>{STATE.view=b.dataset.view;render();}));
+  qs('#btn-distribuir')?.addEventListener('click',()=>distribuirIntereses());
   qs('#btn-np')?.addEventListener('click',()=>abrirModal('prestamo'));
   qs('#btn-na')?.addEventListener('click',()=>abrirModal('aporte'));
   qs('#btn-npago')?.addEventListener('click',()=>abrirModal('pago',null,st));
@@ -720,6 +856,27 @@ function bindEvents(st){
   document.querySelectorAll('[data-edit-pr]').forEach(b=>b.addEventListener('click',()=>{const p=STATE.prestamos.find(x=>x.id==b.dataset.editPr);if(p)abrirModal('prestamo',p);}));
   document.querySelectorAll('[data-edit-ap]').forEach(b=>b.addEventListener('click',()=>{const a=STATE.aportes.find(x=>x.id==b.dataset.editAp);if(a)abrirModal('aporte',a);}));
   document.querySelectorAll('[data-edit-pg]').forEach(b=>b.addEventListener('click',()=>{const p=STATE.pagos.find(x=>x.id==b.dataset.editPg);if(p)abrirModal('pago',p,calcular());}));
+  document.querySelectorAll('[data-ver-comp]').forEach(b=>b.addEventListener('click',()=>{
+    const p=STATE.prestamos.find(x=>x.id==b.dataset.verComp);
+    if(p?.comprobante) verImagen(p.comprobante,'Comprobante — '+p.cliente);
+  }));
+  document.querySelectorAll('[data-ver-comp-pg]').forEach(b=>b.addEventListener('click',()=>{
+    const p=STATE.pagos.find(x=>x.id==b.dataset.verCompPg);
+    if(p?.comprobante) verImagen(p.comprobante,'Comprobante de pago — '+p.socio);
+  }));
+}
+
+function verImagen(src,titulo){
+  cerrarModal();
+  modalEl=document.createElement('div');modalEl.className='modal-overlay';
+  modalEl.innerHTML=`<div class="modal-box wide"><div class="modal-head"><span class="modal-title">🖼 \${titulo}</span><button class="modal-close">✕</button></div>
+    <div class="modal-body" style="text-align:center">
+      <img src="\${src}" style="max-width:100%;max-height:70vh;border-radius:10px;border:1px solid var(--border2)">
+      <div style="margin-top:12px"><a href="\${src}" download="comprobante.jpg" class="btn btn-navy" style="display:inline-flex">⬇ Descargar imagen</a></div>
+    </div></div>`;
+  document.body.appendChild(modalEl);
+  modalEl.addEventListener('click',e=>{if(e.target===modalEl)cerrarModal();});
+  modalEl.querySelector('.modal-close')?.addEventListener('click',cerrarModal);
 }
 
 // ══════════════════════════════════════════════════════
@@ -757,6 +914,11 @@ function htmlModalPrestamo(d){const e=d||{};
       <select id="m-estado">${['PENDIENTE','PAGADO','VENCIDO'].map(s=>`<option${s===(e.estado||'PENDIENTE')?' selected':''}>${s}</option>`).join('')}</select>
     </div>
     <div id="m-preview" class="preview-box" style="display:none"></div>
+    <div class="mb14">
+      <label class="field-lbl">📎 Comprobante (opcional)</label>
+      <input type="file" id="m-comp" accept="image/*" style="padding:6px;font-size:12px">
+      ${e.comprobante?`<div style="margin-top:8px"><img src="${e.comprobante}" style="max-width:100%;max-height:120px;border-radius:8px;border:1px solid var(--border2)"><button type="button" id="m-del-comp" style="display:block;margin-top:4px;font-size:11px;color:var(--red);background:none;border:none;cursor:pointer">🗑 Eliminar imagen</button></div>`:''}
+    </div>
     <button class="btn btn-navy" id="m-submit" style="width:100%;justify-content:center">${d?'Guardar cambios':'Registrar préstamo'}</button>
   </div></div>`;
 }
@@ -768,9 +930,21 @@ function bindModalPrestamo(datos){
     const monto=+qs('#m-monto')?.value,interesPct=+qs('#m-int')?.value;
     const meses=+qs('#m-meses')?.value||1,fechaVenc=qs('#m-venc')?.value,estado=qs('#m-estado')?.value;
     if(!cliente){alert('Ingresa el cliente');return;}if(!fecha){alert('Ingresa la fecha');return;}if(!monto||monto<=0){alert('Ingresa un monto válido');return;}
-    if(datos) STATE.prestamos=STATE.prestamos.map(p=>p.id===datos.id?{...p,cliente,fecha,monto,interesPct,meses,fechaVenc,estado}:p);
-    else STATE.prestamos=[...STATE.prestamos,{id:Date.now(),cliente,fecha,monto,interesPct,meses,fechaVenc,estado}];
-    guardar();cerrarModal();render();toast(datos?'✅ Actualizado':'✅ Registrado');
+    const fileInput=qs('#m-comp');
+    const guardarConComp=(comp)=>{
+      if(datos) STATE.prestamos=STATE.prestamos.map(p=>p.id===datos.id?{...p,cliente,fecha,monto,interesPct,meses,fechaVenc,estado,comprobante:comp!==undefined?comp:p.comprobante}:p);
+      else STATE.prestamos=[...STATE.prestamos,{id:Date.now(),cliente,fecha,monto,interesPct,meses,fechaVenc,estado,comprobante:comp||null}];
+      guardar();cerrarModal();render();toast(datos?'✅ Actualizado':'✅ Registrado');
+    };
+    if(fileInput?.files?.length>0){
+      const reader=new FileReader();
+      reader.onload=e=>guardarConComp(e.target.result);
+      reader.readAsDataURL(fileInput.files[0]);
+    } else { guardarConComp(undefined); }
+  });
+  qs('#m-del-comp')?.addEventListener('click',()=>{
+    if(datos) STATE.prestamos=STATE.prestamos.map(p=>p.id===datos.id?{...p,comprobante:null}:p);
+    guardar();cerrarModal();abrirModal('prestamo',STATE.prestamos.find(x=>x.id===datos?.id));
   });
 }
 
@@ -808,7 +982,12 @@ function htmlModalPago(d,st){const e=d||{},ss=e.socio||STATE.socios[0],si=st.soc
     </div>
     ${si?`<div class="info-box info-blue"><strong>${si.socio}</strong> · Le corresponde: ${sol(si.ganado)} · Pendiente: <strong>${sol(si.pendiente)}</strong></div>`:''}
     <label class="field-lbl">Concepto</label><select id="m-conc" style="margin-bottom:10px">${['Distribución de utilidades','Pago parcial','Anticipo','Otro'].map(t=>`<option${t===(e.concepto||'Distribución de utilidades')?' selected':''}>${t}</option>`).join('')}</select>
-    <label class="field-lbl">Notas (opcional)</label><input id="m-notas" value="${e.notas||''}" placeholder="Observaciones..." style="margin-bottom:14px">
+    <label class="field-lbl">Notas (opcional)</label><input id="m-notas" value="${e.notas||''}" placeholder="Observaciones..." style="margin-bottom:10px">
+    <div class="mb14">
+      <label class="field-lbl">📎 Comprobante (opcional)</label>
+      <input type="file" id="m-comp-pg" accept="image/*" style="padding:6px;font-size:12px">
+      ${e.comprobante?`<div style="margin-top:8px"><img src="${e.comprobante}" style="max-width:100%;max-height:120px;border-radius:8px;border:1px solid var(--border2)"><button type="button" id="m-del-comp-pg" style="display:block;margin-top:4px;font-size:11px;color:var(--red);background:none;border:none;cursor:pointer">🗑 Eliminar imagen</button></div>`:''}
+    </div>
     <button class="btn btn-navy" id="m-submit" style="width:100%;justify-content:center">${d?'Guardar cambios':'Registrar pago'}</button>
   </div></div>`;
 }
@@ -818,9 +997,18 @@ function bindModalPago(datos,st){
     const fecha=qs('#m-fecha')?.value,socio=qs('#m-socio')?.value;
     const monto=+qs('#m-monto')?.value,concepto=qs('#m-conc')?.value,notas=qs('#m-notas')?.value;
     if(!fecha){alert('Ingresa la fecha');return;}if(!monto||monto<=0){alert('Monto inválido');return;}
-    if(datos) STATE.pagos=STATE.pagos.map(p=>p.id===datos.id?{...p,fecha,socio,monto,concepto,notas}:p);
-    else STATE.pagos=[...STATE.pagos,{id:Date.now(),fecha,socio,monto,concepto,notas}];
-    guardar();cerrarModal();render();toast(datos?'✅ Actualizado':'✅ Registrado');
+    const fi=qs('#m-comp-pg');
+    const guardarPago=(comp)=>{
+      if(datos) STATE.pagos=STATE.pagos.map(p=>p.id===datos.id?{...p,fecha,socio,monto,concepto,notas,comprobante:comp!==undefined?comp:p.comprobante}:p);
+      else STATE.pagos=[...STATE.pagos,{id:Date.now(),fecha,socio,monto,concepto,notas,comprobante:comp||null}];
+      guardar();cerrarModal();render();toast(datos?'✅ Actualizado':'✅ Registrado');
+    };
+    if(fi?.files?.length>0){const r=new FileReader();r.onload=e=>guardarPago(e.target.result);r.readAsDataURL(fi.files[0]);}
+    else guardarPago(undefined);
+  });
+  qs('#m-del-comp-pg')?.addEventListener('click',()=>{
+    if(datos) STATE.pagos=STATE.pagos.map(p=>p.id===datos.id?{...p,comprobante:null}:p);
+    guardar();cerrarModal();abrirModal('pago',STATE.pagos.find(x=>x.id===datos?.id),calcular());
   });
 }
 
@@ -900,3 +1088,4 @@ render();
 </script>
 </body>
 </html>
+
