@@ -18,42 +18,64 @@
   --bg:#F4F6FA;--bg2:#EAECF4;
   --border:#D0D5E8;--border2:#E8EAF2;
   --text:#1B2A4A;--text2:#4A5568;--text3:#8A94A6;
+  --card-bg:#ffffff;--input-bg:#ffffff;
   --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
 }
+/* ── MODO OSCURO ── */
+body.dark{
+  --navy:#4A7FC1;--navy2:#5A8FD1;--navy3:#0A0F1A;
+  --gold:#D4AF37;--goldl:#1A1500;--goldb:#F0CB50;
+  --green:#4CAF72;--red:#EF5350;--redl:#1A0000;
+  --amb:#FF8A65;--teal:#26A890;
+  --bg:#0F1521;--bg2:#161E2E;
+  --border:#2A3650;--border2:#1E2A40;
+  --text:#D0DCF0;--text2:#90A0C0;--text3:#556080;
+  --card-bg:#141C2E;--input-bg:#1A2236;
+}
+body,*{transition:background-color .2s,color .2s,border-color .2s;}
 body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:13px}
 input,select,button{font-family:var(--sans)}
-input,select{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);background:#fff;outline:none;transition:border-color .15s}
-input:focus,select:focus{border-color:var(--navy2);box-shadow:0 0 0 3px rgba(36,63,107,.1)}
+input,select{width:100%;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);background:var(--input-bg);outline:none;transition:border-color .15s}
+input:focus,select:focus{border-color:var(--navy2);box-shadow:0 0 0 3px rgba(36,63,107,.15)}
 table{width:100%;border-collapse:collapse}
 th{background:var(--navy);color:#fff;padding:9px 13px;font-size:11px;font-weight:500;text-align:left;white-space:nowrap;letter-spacing:.04em;text-transform:uppercase}
 th.r{text-align:right}th.c{text-align:center}
 td{padding:8px 13px;font-size:12.5px;border-bottom:1px solid var(--border2);vertical-align:middle}
 td.r{text-align:right}td.c{text-align:center}td.b{font-weight:600}td.g{color:var(--text3);font-size:11.5px}
-.row-alt{background:#F8F9FC}.row-even{background:#fff}
+.row-alt{background:var(--bg2)}.row-even{background:var(--card-bg)}
 .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10px;font-weight:700}
 .badge-p{background:#E8F5E9;color:#1E6B3A;border:1px solid #A5D6A7}
 .badge-pen{background:#FFF8E1;color:#BF360C;border:1px solid #FFD54F}
 .badge-v{background:#FFEBEE;color:#7F0000;border:1px solid #EF9A9A}
 .badge-a{background:#E3F2FD;color:#0D47A1;border:1px solid #90CAF9}
+body.dark .badge-p{background:#0A2010;color:#4CAF72;border-color:#1E5030}
+body.dark .badge-pen{background:#1A1000;color:#FF8A65;border-color:#4A2A00}
+body.dark .badge-v{background:#1A0000;color:#EF5350;border-color:#4A1010}
+body.dark .badge-a{background:#0A1A30;color:#64B5F6;border-color:#1A3A60}
 .btn{border:none;border-radius:8px;padding:8px 16px;font-size:12.5px;font-weight:500;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
 .btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{background:var(--navy2)}
-.btn-gold{background:var(--gold);color:#fff}.btn-gold:hover{background:#9a7e0a}
+.btn-gold{background:var(--gold);color:#fff}.btn-gold:hover{opacity:.85}
 .btn-green{background:#E8F5E9;color:var(--green);border:1.5px solid #A5D6A7}.btn-green:hover{background:#d4eeda}
 .btn-red{background:#FFEBEE;color:var(--red);border:1.5px solid #EF9A9A}.btn-red:hover{background:#fdd8dc}
 .btn-amber{background:#FFF8E1;color:var(--amb);border:1.5px solid #FFD54F}.btn-amber:hover{background:#fff0c2}
+body.dark .btn-green{background:#0A2010;color:#4CAF72;border-color:#1E5030}
+body.dark .btn-green:hover{background:#0F2A18}
+body.dark .btn-red{background:#1A0000;color:#EF5350;border-color:#4A1010}
+body.dark .btn-amber{background:#1A1000;color:#FF8A65;border-color:#4A2A00}
 .btn-sm{padding:4px 10px;font-size:10.5px;border-radius:6px}
 .btn-outline{background:transparent;border:1.5px solid var(--border);color:var(--text2)}
 .btn-danger{background:#FFEBEE;color:var(--red);border:1.5px solid #EF9A9A}
-.card{background:#fff;border-radius:14px;border:1px solid var(--border2);overflow:hidden}
+body.dark .btn-danger{background:#1A0000;color:#EF5350;border-color:#4A1010}
+.card{background:var(--card-bg);border-radius:14px;border:1px solid var(--border2);overflow:hidden}
 .card-pad{padding:18px 22px}
-.kpi{background:#fff;border-radius:14px;border:1px solid var(--border2);padding:16px 20px}
+.kpi{background:var(--card-bg);border-radius:14px;border:1px solid var(--border2);padding:16px 20px}
 .field-lbl{display:block;font-size:11.5px;font-weight:500;color:var(--text2);margin-bottom:5px}
 .g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
 .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .g5{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
-.modal-overlay{position:fixed;inset:0;background:rgba(10,18,38,.55);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(3px)}
-.modal-box{background:#fff;border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.2);max-height:92vh;overflow-y:auto}
+.modal-overlay{position:fixed;inset:0;background:rgba(5,10,20,.7);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(4px)}
+.modal-box{background:var(--card-bg);border-radius:16px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.4);max-height:92vh;overflow-y:auto;border:1px solid var(--border)}
 .modal-box.wide{max-width:640px}
 .modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--border2)}
 .modal-body{padding:20px 22px}
@@ -64,18 +86,25 @@ td.r{text-align:right}td.c{text-align:center}td.b{font-weight:600}td.g{color:var
 .info-blue{background:#E3F2FD;border:1px solid #90CAF9;color:#0D47A1}
 .info-gold{background:#FEF9E7;border:1px solid #F0D060;color:#8a6800}
 .info-green{background:#E8F5E9;border:1px solid #A5D6A7;color:#1E6B3A}
+body.dark .info-blue{background:#0A1A30;border-color:#1A3A60;color:#64B5F6}
+body.dark .info-gold{background:#1A1200;border-color:#4A3800;color:#D4AF37}
+body.dark .info-green{background:#0A2010;border-color:#1E5030;color:#4CAF72}
 .tfoot-row{background:var(--navy)}.tfoot-row td{color:#fff;font-size:12.5px;font-weight:500;border:none}
 .preview-box{background:var(--goldl);border:1px solid var(--gold);border-radius:8px;padding:10px 14px;font-size:12.5px;margin-bottom:12px}
 .tip-box{background:#FFF8E1;border:1px solid #FFD54F;border-radius:10px;padding:10px 14px;margin-top:14px;font-size:12px;color:var(--amb)}
-.aporte-card{border-radius:10px;padding:14px 12px;text-align:center;border:1.5px solid var(--border);background:#fff}
+body.dark .tip-box{background:#1A1000;border-color:#4A2A00}
+.aporte-card{border-radius:10px;padding:14px 12px;text-align:center;border:1.5px solid var(--border);background:var(--card-bg)}
 .socio-tag{display:inline-flex;align-items:center;gap:6px;background:#EEF2FF;border:1px solid #C7D2FE;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:500;color:#3730A3;margin:3px}
 .socio-tag button{background:none;border:none;cursor:pointer;color:#7C3AED;font-size:16px;line-height:1;padding:0}
+body.dark .socio-tag{background:#0F1A30;border-color:#2A3A60;color:#90B0F0}
 .pct-bar-wrap{display:flex;align-items:center;justify-content:flex-end;gap:8px}
 .pct-bar-bg{width:44px;height:5px;background:var(--bg2);border-radius:3px;overflow:hidden}
 .pct-bar-fill{height:5px;background:var(--navy);border-radius:3px}
 .edit-btn{background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;border-radius:5px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer}
 .del-btn{background:#FFEBEE;color:var(--red);border:1px solid #EF9A9A;border-radius:5px;padding:3px 8px;font-size:10px;font-weight:600;cursor:pointer}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 22px;border-radius:30px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.2);white-space:nowrap}
+body.dark .edit-btn{background:#0F1A30;color:#90B0F0;border-color:#2A3A60}
+body.dark .del-btn{background:#1A0000;color:#EF5350;border-color:#4A1010}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:10px 22px;border-radius:30px;font-size:13px;font-weight:500;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.3);white-space:nowrap}
 .toast.show{opacity:1}
 .divider{height:1px;background:var(--border2);margin:14px 0}
 .mb10{margin-bottom:10px}.mb14{margin-bottom:14px}
@@ -88,29 +117,39 @@ td.r{text-align:right}td.c{text-align:center}td.b{font-weight:600}td.g{color:var
 .sync-dot.offline{background:#94a3b8}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--navy3)}
-.login-card{background:#fff;border-radius:20px;padding:40px;max-width:400px;width:100%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.4)}
-.google-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:12px 20px;border:2px solid var(--border);border-radius:12px;background:#fff;cursor:pointer;font-size:14px;font-weight:500;color:var(--text);transition:all .15s}
-.google-btn:hover{border-color:#4285F4;background:#F8FAFF;box-shadow:0 4px 16px rgba(66,133,244,.2)}
+.login-card{background:var(--card-bg);border-radius:20px;padding:40px;max-width:400px;width:100%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.4);border:1px solid var(--border)}
+.google-btn{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:12px 20px;border:2px solid var(--border);border-radius:12px;background:var(--card-bg);cursor:pointer;font-size:14px;font-weight:500;color:var(--text);transition:all .15s}
+.google-btn:hover{border-color:#4285F4;background:var(--bg2);box-shadow:0 4px 16px rgba(66,133,244,.2)}
 .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:10px}
 .cal-head-cell{text-align:center;font-size:10px;font-weight:700;color:var(--text3);padding:6px 2px;text-transform:uppercase}
-.cal-cell{min-height:64px;border-radius:8px;padding:5px 6px;border:1px solid var(--border2);background:#fff;font-size:11px}
+.cal-cell{min-height:64px;border-radius:8px;padding:5px 6px;border:1px solid var(--border2);background:var(--card-bg);font-size:11px}
 .cal-cell.other-month{background:var(--bg2);opacity:.5}
-.cal-cell.today{border:2px solid var(--navy2);background:#EEF4FF}
+.cal-cell.today{border:2px solid var(--navy2);background:var(--bg2)}
 .cal-cell.has-events{border-color:#FFD54F}
+body.dark .cal-cell.has-events{border-color:#4A3800}
 .cal-day-num{font-size:11px;font-weight:600;color:var(--text2);margin-bottom:3px}
 .cal-cell.today .cal-day-num{color:var(--navy2);font-weight:700}
 .cal-event{display:block;background:#FFF3E0;border-left:3px solid var(--amb);border-radius:3px;padding:2px 4px;font-size:9.5px;color:var(--amb);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
 .cal-event.venc-pasado{background:#FFEBEE;border-left-color:var(--red);color:var(--red)}
 .cal-event.venc-hoy{background:#E8F5E9;border-left-color:var(--green);color:var(--green)}
+body.dark .cal-event{background:#1A1000;border-left-color:var(--amb);color:var(--amb)}
+body.dark .cal-event.venc-pasado{background:#1A0000;color:var(--red)}
+body.dark .cal-event.venc-hoy{background:#0A2010;color:var(--green)}
 .cal-nav button{background:var(--bg2);border:1px solid var(--border);border-radius:7px;padding:5px 12px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text2)}
-.upcoming-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;border:1px solid var(--border2);background:#fff;margin-bottom:6px}
-.upcoming-date-box{text-align:center;min-width:44px;padding:6px;border-radius:8px;background:var(--goldl);border:1px solid #FFD54F}
+.upcoming-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;border:1px solid var(--border2);background:var(--card-bg);margin-bottom:6px}
+.upcoming-date-box{text-align:center;min-width:44px;padding:6px;border-radius:8px;background:var(--goldl);border:1px solid var(--gold)}
 .upcoming-date-day{font-size:18px;font-weight:700;font-family:var(--mono);color:var(--amb);line-height:1}
 .upcoming-date-mon{font-size:9px;font-weight:600;color:var(--amb);text-transform:uppercase}
-.upcoming-item.venc-pasado .upcoming-date-box{background:var(--redl);border-color:#EF9A9A}
+.upcoming-item.venc-pasado .upcoming-date-box{background:var(--redl);border-color:var(--red)}
 .upcoming-item.venc-pasado .upcoming-date-day,.upcoming-item.venc-pasado .upcoming-date-mon{color:var(--red)}
-.upcoming-item.venc-hoy .upcoming-date-box{background:#E8F5E9;border-color:#A5D6A7}
+.upcoming-item.venc-hoy .upcoming-date-box{background:#0A2010;border-color:var(--green)}
 .upcoming-item.venc-hoy .upcoming-date-day,.upcoming-item.venc-hoy .upcoming-date-mon{color:var(--green)}
+/* Cuotas table inside modal */
+.cuotas-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px}
+.cuotas-table th{background:var(--navy);color:#fff;padding:6px 10px;font-size:10px;text-align:right}
+.cuotas-table th:first-child{text-align:left}
+.cuotas-table td{padding:6px 10px;border-bottom:1px solid var(--border2);text-align:right;font-family:var(--mono)}
+.cuotas-table td:first-child{text-align:left;font-family:var(--sans);color:var(--text2)}
 </style>
 </head>
 <body>
@@ -202,6 +241,7 @@ let STATE={
   calYear:new Date().getFullYear(),
   calMonth:new Date().getMonth(),
   cargando:false,
+  darkMode: localStorage.getItem('coop_dark')==='1',
 };
 
 // ══════════════════════════════════════════════════════
@@ -450,6 +490,7 @@ function renderHeader(st){
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <button id="btn-export" class="btn btn-gold" style="font-size:11.5px;padding:7px 14px">📊 Excel</button>
+      <button id="btn-dark" title="${STATE.darkMode?'Modo claro':'Modo oscuro'}" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 12px;color:rgba(255,255,255,.85);font-size:15px;cursor:pointer;line-height:1">${STATE.darkMode?'☀️':'🌙'}</button>
       <button id="btn-config" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:7px 14px;color:rgba(255,255,255,.85);font-size:11.5px;cursor:pointer">⚙️ Config</button>
       <button id="btn-ai" style="background:var(--gold);border:none;border-radius:8px;padding:7px 14px;color:white;font-size:11.5px;font-weight:600;cursor:pointer">${STATE.aiLoading?'⏳':'🤖 IA'}</button>
       <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border-radius:8px;padding:6px 12px">
@@ -530,7 +571,7 @@ function renderPrestamos(){
       <button class="btn btn-navy" id="btn-np">＋ Nuevo préstamo</button>
     </div>
     <div class="card"><div style="overflow-x:auto"><table>
-      <thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th class="r">Monto</th><th class="r">Interés%</th><th class="r">Interés S/</th><th class="r">Mora S/</th><th class="r">Total a Cobrar</th><th>Vencimiento</th><th>Estado</th><th class="c">Acciones</th></tr></thead>
+      <thead><tr><th>#</th><th>Cliente</th><th>Fecha</th><th class="r">Monto</th><th class="r">Interés%</th><th class="r">Interés S/</th><th>Tipo cobro</th><th class="r">Mora S/</th><th class="r">Total a Cobrar</th><th>Vencimiento</th><th>Estado</th><th class="c">Acciones</th></tr></thead>
       <tbody>${prs.map((p,i)=>{
         const ef=estadoEfectivo(p);
         const isHoy=ef==='PENDIENTE'&&p.fechaVenc===hoy;
@@ -541,6 +582,7 @@ function renderPrestamos(){
           <td class="r mono">${sol(p.monto)}</td>
           <td class="r g">${p.interesPct}%</td>
           <td class="r mono">${sol(getInt(p))}</td>
+          <td style="font-size:11px;white-space:nowrap">${p.tipoCuota==='mensual'?`<span style="background:#E8F5E9;color:#1E6B3A;border:1px solid #A5D6A7;border-radius:12px;padding:2px 8px;font-size:10px;font-weight:700">📅 Mensual</span>`:`<span style="background:var(--bg2);color:var(--text3);border:1px solid var(--border);border-radius:12px;padding:2px 8px;font-size:10px">Único</span>`}</td>
           <td class="r mono" style="color:${getMora(p)>0?'var(--red)':'var(--text3)'}">${getMora(p)>0?sol(getMora(p)):'-'}</td>
           <td class="r b mono" style="color:${getMora(p)>0?'var(--red)':'inherit'}">${sol(getTotalConMora(p))}</td>
           <td class="g" style="color:${ef==='VENCIDO'?'var(--red)':isHoy?'var(--amb)':''};font-weight:${isHoy||ef==='VENCIDO'?600:400}">${p.fechaVenc}${isHoy?' ⚠️':''}</td>
@@ -817,6 +859,7 @@ function renderCalendario(){
 //  RENDER PRINCIPAL
 // ══════════════════════════════════════════════════════
 function render(){
+  document.body.classList.toggle('dark', STATE.darkMode);
   const root=qs('#root');
   if(STATE.cargando){root.innerHTML=renderCargando();return;}
   if(!accessToken){root.innerHTML=renderLogin();return;}
@@ -860,6 +903,7 @@ function bindEvents(st){
   qs('#btn-ai')?.addEventListener('click',()=>getAI(st));
   qs('#close-ai')?.addEventListener('click',()=>{STATE.aiText='';render();});
   qs('#btn-export')?.addEventListener('click',exportarExcel);
+  qs('#btn-dark')?.addEventListener('click',()=>{STATE.darkMode=!STATE.darkMode;localStorage.setItem('coop_dark',STATE.darkMode?'1':'0');render();});
   qs('#btn-config')?.addEventListener('click',()=>abrirModal('config'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.addEventListener('click',()=>{STATE.view=b.dataset.view;render();}));
   qs('#btn-distribuir')?.addEventListener('click',()=>distribuirIntereses());
@@ -921,20 +965,39 @@ function abrirModal(tipo,datos=null,st=null){
 }
 
 function htmlModalPrestamo(d){const e=d||{};
-  return`<div class="modal-box"><div class="modal-head"><span class="modal-title">${d?'✏️ Editar préstamo':'＋ Nuevo préstamo'}</span><button class="modal-close">✕</button></div>
+  const mesesVal=e.meses??1;
+  const tipoVal=e.tipoCuota||'bullet'; // bullet=pago único al vencer, mensual=cuotas mensuales
+  return`<div class="modal-box wide"><div class="modal-head"><span class="modal-title">${d?'✏️ Editar préstamo':'＋ Nuevo préstamo'}</span><button class="modal-close">✕</button></div>
   <div class="modal-body">
     <label class="field-lbl">Cliente</label><input id="m-cliente" value="${e.cliente||''}" placeholder="Nombre del cliente" style="margin-bottom:10px">
     <div class="g2 mb10"><div><label class="field-lbl">Fecha del préstamo</label><input type="date" id="m-fecha" value="${e.fecha||''}"></div>
     <div><label class="field-lbl">Fecha de vencimiento</label><input type="date" id="m-venc" value="${e.fechaVenc||''}"></div></div>
     <div class="g3 mb10">
       <div><label class="field-lbl">Monto (S/)</label><input type="number" id="m-monto" value="${e.monto||''}" placeholder="0.00" step="0.01" min="0"></div>
-      <div><label class="field-lbl">Interés %</label><input type="number" id="m-int" value="${e.interesPct??15}" step="0.5" min="0"></div>
-      <div><label class="field-lbl">Plazo (meses)</label><input type="number" id="m-meses" value="${e.meses??1}" min="1"></div>
+      <div><label class="field-lbl">Interés % mensual</label><input type="number" id="m-int" value="${e.interesPct??15}" step="0.5" min="0"></div>
+      <div><label class="field-lbl">Plazo (meses)</label><input type="number" id="m-meses" value="${mesesVal}" min="1"></div>
+    </div>
+    <div class="mb10">
+      <label class="field-lbl">Tipo de cobro</label>
+      <div style="display:flex;gap:8px">
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 13px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--input-bg)" id="lbl-bullet">
+          <input type="radio" name="tipoCuota" id="r-bullet" value="bullet" ${tipoVal==='bullet'?'checked':''} style="width:auto;padding:0;border:none">
+          <div><p style="font-size:12.5px;font-weight:500;color:var(--text)">Pago único al vencer</p><p style="font-size:11px;color:var(--text3)">Todo al final del plazo</p></div>
+        </label>
+        <label style="flex:1;display:flex;align-items:center;gap:8px;padding:9px 13px;border:1.5px solid var(--border);border-radius:8px;cursor:pointer;background:var(--input-bg)" id="lbl-mensual">
+          <input type="radio" name="tipoCuota" id="r-mensual" value="mensual" ${tipoVal==='mensual'?'checked':''} style="width:auto;padding:0;border:none">
+          <div><p style="font-size:12.5px;font-weight:500;color:var(--text)">Cuotas mensuales</p><p style="font-size:11px;color:var(--text3)">Capital + interés por mes</p></div>
+        </label>
+      </div>
+    </div>
+    <div id="m-preview" class="preview-box" style="display:none"></div>
+    <div id="m-cuotas-wrap" style="display:none;margin-bottom:14px">
+      <p style="font-size:11.5px;font-weight:600;color:var(--text2);margin-bottom:8px">📅 Plan de pagos mensual</p>
+      <div style="overflow-x:auto"><table class="cuotas-table" id="m-cuotas-tbl"></table></div>
     </div>
     <div class="mb14"><label class="field-lbl">Estado</label>
       <select id="m-estado">${['PENDIENTE','PAGADO','VENCIDO'].map(s=>`<option${s===(e.estado||'PENDIENTE')?' selected':''}>${s}</option>`).join('')}</select>
     </div>
-    <div id="m-preview" class="preview-box" style="display:none"></div>
     <div class="mb14">
       <label class="field-lbl">📎 Comprobante (opcional)</label>
       <input type="file" id="m-comp" accept="image/*" style="padding:6px;font-size:12px">
@@ -944,29 +1007,118 @@ function htmlModalPrestamo(d){const e=d||{};
   </div></div>`;
 }
 function bindModalPrestamo(datos){
-  // Auto-calcular meses desde fecha y fechaVenc para mantener consistencia
+  // ── Helpers de cálculo ──────────────────────────────
+  const getVals=()=>({
+    mo:+qs('#m-monto')?.value||0,
+    ip:+qs('#m-int')?.value||0,
+    ms:+qs('#m-meses')?.value||1,
+    tipo:qs('#r-mensual')?.checked?'mensual':'bullet',
+    fecha:qs('#m-fecha')?.value||'',
+  });
+
+  // Genera las filas de cuotas mensuales
+  // Tipo "mensual": cada mes se cobra interés sobre el capital total (interés simple),
+  // y en el último mes se devuelve además el capital.
+  // Esto es lo más común en cooperativas informales de Perú.
+  function generarCuotas(mo,ip,ms,fechaInicio){
+    if(!mo||!ms||ms<1) return [];
+    const intMensual=+(mo*(ip/100)).toFixed(2);
+    const cuotas=[];
+    let fechaBase=fechaInicio?fechaInicio.split('-').map(Number):null;
+    for(let i=1;i<=ms;i++){
+      const capital=i===ms?mo:0;         // capital solo en último mes
+      const cuota=intMensual+capital;
+      let fechaCuota='';
+      if(fechaBase){
+        const [y,m,d]=fechaBase;
+        // Sumar i meses a la fecha de inicio
+        const dt=new Date(Date.UTC(y,m-1+i,d));
+        fechaCuota=dt.getUTCFullYear()+'-'+String(dt.getUTCMonth()+1).padStart(2,'0')+'-'+String(dt.getUTCDate()).padStart(2,'0');
+      }
+      cuotas.push({mes:i,interes:intMensual,capital,cuota,fecha:fechaCuota});
+    }
+    return cuotas;
+  }
+
+  // Actualiza el preview y la tabla de cuotas
+  const upd=()=>{
+    const {mo,ip,ms,tipo,fecha}=getVals();
+    const intTotal=mo*(ip/100)*ms;
+    const prev=qs('#m-preview');
+    const wrap=qs('#m-cuotas-wrap');
+    const tbl=qs('#m-cuotas-tbl');
+
+    // Resaltar el radio seleccionado
+    qs('#lbl-bullet')?.style.setProperty('border-color',tipo==='bullet'?'var(--navy)':'var(--border)');
+    qs('#lbl-mensual')?.style.setProperty('border-color',tipo==='mensual'?'var(--navy)':'var(--border)');
+
+    if(mo>0&&prev){
+      prev.style.display='block';
+      if(tipo==='bullet'){
+        prev.innerHTML=`💡 Interés total: <strong>${sol(intTotal)}</strong> · Cobrar al vencer: <strong>${sol(mo+intTotal)}</strong>`;
+        if(wrap) wrap.style.display='none';
+      } else {
+        // Cuotas mensuales
+        const cuotas=generarCuotas(mo,ip,ms,fecha);
+        const intMens=+(mo*(ip/100)).toFixed(2);
+        const totalPagar=intMens*ms+mo;
+        prev.innerHTML=`💡 Cuota mensual solo interés: <strong>${sol(intMens)}</strong> · Último mes: <strong>${sol(intMens+mo)}</strong> · Total: <strong>${sol(totalPagar)}</strong>`;
+        if(wrap&&tbl){
+          wrap.style.display='block';
+          tbl.innerHTML=`<thead><tr>
+            <th style="text-align:left">Mes</th>
+            <th>Fecha aprox.</th>
+            <th>Interés</th>
+            <th>Capital</th>
+            <th>Cuota</th>
+          </tr></thead><tbody>${cuotas.map(c=>`<tr style="${c.mes===ms?'background:var(--goldl);font-weight:600':''}">
+            <td style="text-align:left;font-family:var(--sans)">Mes ${c.mes}${c.mes===ms?' 🔚':''}</td>
+            <td>${c.fecha||'—'}</td>
+            <td>${sol(c.interes)}</td>
+            <td>${c.capital>0?sol(c.capital):'—'}</td>
+            <td style="color:${c.mes===ms?'var(--amb)':'inherit'};font-weight:${c.mes===ms?'700':'400'}">${sol(c.cuota)}</td>
+          </tr>`).join('')}</tbody>
+          <tfoot><tr style="background:var(--navy);color:#fff">
+            <td colspan="2" style="text-align:left;font-family:var(--sans);padding:6px 10px;font-size:11px">TOTAL A COBRAR</td>
+            <td style="padding:6px 10px">${sol(intMens*ms)}</td>
+            <td style="padding:6px 10px">${sol(mo)}</td>
+            <td style="padding:6px 10px;color:#D4AF37;font-weight:700">${sol(mo+intMens*ms)}</td>
+          </tr></tfoot>`;
+        }
+      }
+    } else {
+      if(prev) prev.style.display='none';
+      if(wrap) wrap.style.display='none';
+    }
+  };
+
+  // Auto-calcular meses desde fechas
   const calcMeses=()=>{
     const f=qs('#m-fecha')?.value, v=qs('#m-venc')?.value;
     if(f&&v){
       const [fy,fm,fd]=f.split('-').map(Number);
       const [vy,vm,vd]=v.split('-').map(Number);
-      // Diferencia en meses (aproximada, mínimo 1)
       const diffMeses=Math.max(1,Math.round(((Date.UTC(vy,vm-1,vd)-Date.UTC(fy,fm-1,fd))/(1000*60*60*24))/30));
       const mEl=qs('#m-meses');if(mEl){mEl.value=diffMeses;upd();}
     }
   };
+
   ['m-fecha','m-venc'].forEach(id=>qs('#'+id)?.addEventListener('change',calcMeses));
-  const upd=()=>{const mo=+qs('#m-monto')?.value||0,ip=+qs('#m-int')?.value||0,ms=+qs('#m-meses')?.value||1;const i=mo*(ip/100)*ms;const p=qs('#m-preview');if(mo>0&&p){p.style.display='block';p.innerHTML=`💡 Interés: <strong>${sol(i)}</strong> · Total: <strong>${sol(mo+i)}</strong>`;}};
-  ['m-monto','m-int','m-meses'].forEach(id=>qs('#'+id)?.addEventListener('input',upd));upd();
+  ['m-monto','m-int','m-meses'].forEach(id=>qs('#'+id)?.addEventListener('input',upd));
+  qs('#r-bullet')?.addEventListener('change',upd);
+  qs('#r-mensual')?.addEventListener('change',upd);
+  upd();
+
   qs('#m-submit')?.addEventListener('click',()=>{
     const cliente=qs('#m-cliente')?.value?.trim(),fecha=qs('#m-fecha')?.value;
     const monto=+qs('#m-monto')?.value,interesPct=+qs('#m-int')?.value;
     const meses=+qs('#m-meses')?.value||1,fechaVenc=qs('#m-venc')?.value,estado=qs('#m-estado')?.value;
+    const tipoCuota=qs('#r-mensual')?.checked?'mensual':'bullet';
     if(!cliente){alert('Ingresa el cliente');return;}if(!fecha){alert('Ingresa la fecha');return;}if(!monto||monto<=0){alert('Ingresa un monto válido');return;}
     const fileInput=qs('#m-comp');
     const guardarConComp=(comp)=>{
-      if(datos) STATE.prestamos=STATE.prestamos.map(p=>p.id===datos.id?{...p,cliente,fecha,monto,interesPct,meses,fechaVenc,estado,comprobante:comp!==undefined?comp:p.comprobante}:p);
-      else STATE.prestamos=[...STATE.prestamos,{id:Date.now(),cliente,fecha,monto,interesPct,meses,fechaVenc,estado,comprobante:comp||null}];
+      if(datos) STATE.prestamos=STATE.prestamos.map(p=>p.id===datos.id?{...p,cliente,fecha,monto,interesPct,meses,fechaVenc,estado,tipoCuota,comprobante:comp!==undefined?comp:p.comprobante}:p);
+      else STATE.prestamos=[...STATE.prestamos,{id:Date.now(),cliente,fecha,monto,interesPct,meses,fechaVenc,estado,tipoCuota,comprobante:comp||null}];
       guardar();cerrarModal();render();toast(datos?'✅ Actualizado':'✅ Registrado');
     };
     if(fileInput?.files?.length>0){
