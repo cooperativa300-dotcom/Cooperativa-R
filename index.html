@@ -137,9 +137,17 @@ const getInt = p => (+p.monto)*(+p.interesPct/100)*(+p.meses);
 // Mora: 3% mensual sobre el monto por cada mes vencido (mínimo 0)
 function getMora(p){
   if(estadoEfectivo(p)!=='VENCIDO') return 0;
-  const hoy=new Date(hoyStr());
-  const venc=new Date(p.fechaVenc);
-  const diasVencido=Math.max(0,Math.round((hoy-venc)/(1000*60*60*24)));
+  // Usar Date.UTC para evitar desfase de zona horaria (Perú UTC-5):
+  // new Date('2026-05-07') se interpreta como UTC medianoche, mientras que
+  // new Date() es hora local — esto causaba cálculos erróneos de días.
+  const hoy=hoyStr();
+  const venc=p.fechaVenc;
+  if(hoy<=venc) return 0;
+  const [vy,vm,vd]=venc.split('-').map(Number);
+  const [hy,hm,hd]=hoy.split('-').map(Number);
+  const msVenc=Date.UTC(vy,vm-1,vd);
+  const msHoy=Date.UTC(hy,hm-1,hd);
+  const diasVencido=Math.max(0,Math.round((msHoy-msVenc)/(1000*60*60*24)));
   const mesesVencido=diasVencido/30;
   return +(+p.monto * 0.03 * mesesVencido).toFixed(2);
 }
@@ -374,7 +382,8 @@ function calcular(){
   const aportesInt=aportes.filter(a=>a.tipo==='Intereses distribuidos');
   const totalCap=aportes.reduce((s,a)=>s+(+a.monto),0);
   const totalCapBase=aportesBase.reduce((s,a)=>s+(+a.monto),0);
-  const prestAct=prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE').reduce((s,p)=>s+(+p.monto),0);
+  // Capital activamente prestado: PENDIENTES + VENCIDOS (el dinero ya salió de caja)
+  const prestAct=prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE'||estadoEfectivo(p)==='VENCIDO').reduce((s,p)=>s+(+p.monto),0);
   const cajaCap=totalCap-prestAct;
   const intCob=prestamos.filter(p=>estadoEfectivo(p)==='PAGADO').reduce((s,p)=>s+getInt(p),0);
   // Sin reserva — intereses completos se distribuyen
@@ -396,7 +405,11 @@ function calcular(){
     pagados:prestamos.filter(p=>estadoEfectivo(p)==='PAGADO').length,
     pendientes:prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE').length,
     vencidos:prestamos.filter(p=>estadoEfectivo(p)==='VENCIDO').length,
-    socios:socData};
+    socios:socData,
+    // prestAct incluye PENDIENTES + VENCIDOS (dinero fuera de caja)
+    prestActPendiente:prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE').reduce((s,p)=>s+(+p.monto),0),
+    prestActVencido:prestamos.filter(p=>estadoEfectivo(p)==='VENCIDO').reduce((s,p)=>s+(+p.monto),0)
+  };
 }
 function badge(p){const ef=estadoEfectivo(p);const m={PAGADO:'p',PENDIENTE:'pen',VENCIDO:'v'};return`<span class="badge badge-${m[ef]||'pen'}">${ef}</span>`;}
 
@@ -474,9 +487,9 @@ function renderDashboard(st){
     <p style="font-size:12px;color:var(--text3);margin-bottom:18px">Estado financiero en tiempo real</p>
     <div class="g4" style="margin-bottom:16px">
       ${[['Capital Total',sol(st.totalCap),'Suma de aportes','var(--navy)'],
-         ['Capital en Caja',sol(st.cajaCap),'Disponible','var(--teal)'],
+         ['Capital en Caja',sol(st.cajaCap),'Disponible (excl. prestado y vencidos)','var(--teal)'],
          ['Intereses Cobrados',sol(st.intCob),'Préstamos PAGADOS','var(--green)'],
-         ['Utilidades Distribuibles',sol(st.dist),'100% se reparte entre socios','var(--gold)']
+         ['Utilidades Distribuibles',sol(st.intPendDist),'Pendiente de repartir entre socios','var(--gold)']
         ].map(([t,v,s,c])=>`<div class="kpi" style="border-top:3px solid ${c}">
         <p style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px">${t}</p>
         <p style="font-size:20px;font-weight:600;font-family:var(--mono);margin-bottom:4px">${v}</p>
@@ -535,7 +548,7 @@ function renderPrestamos(){
           <td class="c"><div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
             <button class="edit-btn" data-edit-pr="${p.id}">✏️</button>
             ${p.comprobante?`<button class="btn btn-outline btn-sm" data-ver-comp="${p.id}" title="Ver comprobante">🖼</button>`:''}
-            ${ef==='PENDIENTE'?`<button class="btn btn-green btn-sm" data-pagar="${p.id}">✓</button><button class="btn btn-red btn-sm" data-vencer="${p.id}">Vencido</button>`:''}
+            ${ef==='PENDIENTE'?`<button class="btn btn-green btn-sm" data-pagar="${p.id}">✓</button><button class="btn btn-red btn-sm" data-vencer="${p.id}">Vencido</button>`:ef==='VENCIDO'?`<button class="btn btn-green btn-sm" data-pagar="${p.id}">✓ Cobrado</button>`:''}
             <button class="del-btn" data-del-pr="${p.id}">🗑</button>
           </div></td>
         </tr>`;}).join('')}
@@ -662,9 +675,11 @@ function renderResumenMensual(){
       mesesData[k].nCobrados++;
     }
     if(ef==='VENCIDO'&&p.fechaVenc){
+      // La mora es dinámica (crece con el tiempo) y no está realizada;
+      // se muestra solo en el total de mora acumulada, no por mes
       const k=p.fechaVenc.slice(0,7);
       if(!mesesData[k])mesesData[k]={mes:k,prestado:0,cobrado:0,intereses:0,mora:0,nPrestamos:0,nCobrados:0};
-      mesesData[k].mora+= getMora(p);
+      // No acumular mora por mes ya que no es ingreso realizado
     }
   });
   const filas=Object.values(mesesData).sort((a,b)=>a.mes<b.mes?-1:1);
@@ -732,6 +747,8 @@ function renderCalendario(){
   const dias=new Date(year,month+1,0).getDate();
   const prev=new Date(year,month,0).getDate();
   let cells=[];
+  // Nota: first=0 significa Domingo — la semana empieza en Domingo (índice 0)
+  // Si first=0 no hay celdas vacías al inicio, lo cual es correcto
   for(let i=first-1;i>=0;i--)cells.push({d:prev-i,m:month-1,other:true});
   for(let d=1;d<=dias;d++)cells.push({d,m:month,other:false});
   let rem=cells.length%7;if(rem)for(let d=1;d<=7-rem;d++)cells.push({d,m:month+1,other:true});
@@ -772,8 +789,10 @@ function renderCalendario(){
         <p style="font-size:12px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">Próximos vencimientos</p>
         ${proximos.length===0?`<p style="font-size:12px;color:var(--text3);text-align:center;padding:20px 0">Sin pendientes 🎉</p>`:`
         ${proximos.map(p=>{
-          const d2=new Date(p.fechaVenc);
-          const dias2=Math.round((new Date(p.fechaVenc)-new Date(hoy))/(1000*60*60*24));
+          const d2=new Date(p.fechaVenc+'T00:00:00Z');
+          const [pvy,pvm,pvd]=p.fechaVenc.split('-').map(Number);
+          const [hvy,hvm,hvd]=hoy.split('-').map(Number);
+          const dias2=Math.round((Date.UTC(pvy,pvm-1,pvd)-Date.UTC(hvy,hvm-1,hvd))/(1000*60*60*24));
           const cls=dias2===0?'venc-hoy':dias2<0?'venc-pasado':'';
           return`<div class="upcoming-item ${cls}">
             <div class="upcoming-date-box"><div class="upcoming-date-day">${d2.getUTCDate()}</div><div class="upcoming-date-mon">${MESES[d2.getUTCMonth()].slice(0,3)}</div></div>
@@ -820,10 +839,11 @@ function distribuirIntereses(){
   if(st.intPendDist<=0){toast('✅ No hay intereses pendientes de distribuir');return;}
   if(!confirm(`¿Distribuir ${sol(st.intPendDist)} entre los ${STATE.socios.length} socios como aportes de intereses?`))return;
   const fecha=hoyStr();
+  const tsBase=Date.now();
   const nuevosAportes=st.socios
-    .filter(s=>s.pendiente>0)
-    .map(s=>({
-      id:Date.now()+Math.random(),
+    .filter(s=>s.pendiente>0.005)
+    .map((s,idx)=>({
+      id: tsBase * 100 + idx,
       fecha,
       socio:s.socio,
       monto:+s.pendiente.toFixed(2),
@@ -831,7 +851,8 @@ function distribuirIntereses(){
       concepto:'Distribución automática de intereses'
     }));
   STATE.aportes=[...STATE.aportes,...nuevosAportes];
-  guardar();render();
+  guardar(); render();
+  // Asegurar que la vista de distribución muestre "✅ Todo distribuido"
   toast(`✅ Intereses distribuidos entre ${nuevosAportes.length} socios`);
 }
 
@@ -869,10 +890,10 @@ function bindEvents(st){
 function verImagen(src,titulo){
   cerrarModal();
   modalEl=document.createElement('div');modalEl.className='modal-overlay';
-  modalEl.innerHTML=`<div class="modal-box wide"><div class="modal-head"><span class="modal-title">🖼 \${titulo}</span><button class="modal-close">✕</button></div>
+  modalEl.innerHTML=`<div class="modal-box wide"><div class="modal-head"><span class="modal-title">🖼 ${titulo}</span><button class="modal-close">✕</button></div>
     <div class="modal-body" style="text-align:center">
-      <img src="\${src}" style="max-width:100%;max-height:70vh;border-radius:10px;border:1px solid var(--border2)">
-      <div style="margin-top:12px"><a href="\${src}" download="comprobante.jpg" class="btn btn-navy" style="display:inline-flex">⬇ Descargar imagen</a></div>
+      <img src="${src}" style="max-width:100%;max-height:70vh;border-radius:10px;border:1px solid var(--border2)">
+      <div style="margin-top:12px"><a href="${src}" download="comprobante.jpg" class="btn btn-navy" style="display:inline-flex">⬇ Descargar imagen</a></div>
     </div></div>`;
   document.body.appendChild(modalEl);
   modalEl.addEventListener('click',e=>{if(e.target===modalEl)cerrarModal();});
@@ -923,6 +944,18 @@ function htmlModalPrestamo(d){const e=d||{};
   </div></div>`;
 }
 function bindModalPrestamo(datos){
+  // Auto-calcular meses desde fecha y fechaVenc para mantener consistencia
+  const calcMeses=()=>{
+    const f=qs('#m-fecha')?.value, v=qs('#m-venc')?.value;
+    if(f&&v){
+      const [fy,fm,fd]=f.split('-').map(Number);
+      const [vy,vm,vd]=v.split('-').map(Number);
+      // Diferencia en meses (aproximada, mínimo 1)
+      const diffMeses=Math.max(1,Math.round(((Date.UTC(vy,vm-1,vd)-Date.UTC(fy,fm-1,fd))/(1000*60*60*24))/30));
+      const mEl=qs('#m-meses');if(mEl){mEl.value=diffMeses;upd();}
+    }
+  };
+  ['m-fecha','m-venc'].forEach(id=>qs('#'+id)?.addEventListener('change',calcMeses));
   const upd=()=>{const mo=+qs('#m-monto')?.value||0,ip=+qs('#m-int')?.value||0,ms=+qs('#m-meses')?.value||1;const i=mo*(ip/100)*ms;const p=qs('#m-preview');if(mo>0&&p){p.style.display='block';p.innerHTML=`💡 Interés: <strong>${sol(i)}</strong> · Total: <strong>${sol(mo+i)}</strong>`;}};
   ['m-monto','m-int','m-meses'].forEach(id=>qs('#'+id)?.addEventListener('input',upd));upd();
   qs('#m-submit')?.addEventListener('click',()=>{
@@ -1060,7 +1093,7 @@ function exportarExcel(){
   const wsPr=XLSX.utils.aoa_to_sheet([['#','Cliente','Fecha','Monto','Interés%','Total','Vencimiento','Estado'],...STATE.prestamos.slice().sort((a,b)=>a.fechaVenc<b.fechaVenc?-1:1).map((p,i)=>[i+1,p.cliente,p.fecha,+p.monto,+p.interesPct,+(+p.monto+getInt(p)).toFixed(2),p.fechaVenc,estadoEfectivo(p)])]);
   XLSX.utils.book_append_sheet(wb,wsPr,'Préstamos');
   const pen=STATE.prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE').slice().sort((a,b)=>a.fechaVenc<b.fechaVenc?-1:1);
-  const wsPen=XLSX.utils.aoa_to_sheet([['PENDIENTES'],[],['#','Cliente','Monto','Total','Vencimiento','Días'],...pen.map((p,i)=>{const d=Math.round((new Date(p.fechaVenc)-new Date(hoyStr()))/(1000*60*60*24));return[i+1,p.cliente,+p.monto,+(+p.monto+getInt(p)).toFixed(2),p.fechaVenc,d];})]);
+  const wsPen=XLSX.utils.aoa_to_sheet([['PENDIENTES'],[],['#','Cliente','Monto','Total','Vencimiento','Días'],...pen.map((p,i)=>{const [vy,vm,vd]=p.fechaVenc.split('-').map(Number);const [hy,hm,hd]=hoyStr().split('-').map(Number);const d=Math.round((Date.UTC(vy,vm-1,vd)-Date.UTC(hy,hm-1,hd))/(1000*60*60*24));return[i+1,p.cliente,+p.monto,+(+p.monto+getInt(p)).toFixed(2),p.fechaVenc,d];})]);
   XLSX.utils.book_append_sheet(wb,wsPen,'Pendientes');
   const wsAp=XLSX.utils.aoa_to_sheet([['#','Fecha','Socio','Monto','Tipo','Concepto'],...STATE.aportes.slice().sort((a,b)=>a.fecha<b.fecha?-1:1).map((a,i)=>[i+1,a.fecha,a.socio,+a.monto,a.tipo,a.concepto||''])]);
   XLSX.utils.book_append_sheet(wb,wsAp,'Aportes');
