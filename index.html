@@ -417,38 +417,108 @@ function estadoEfectivo(p){
 }
 function calcular(){
   const{aportes,prestamos,pagos,socios}=STATE;
-  // Capital base: solo aportes de tipo NO intereses
+
+  // ── Clasificar aportes ──────────────────────────────
   const aportesBase=aportes.filter(a=>a.tipo!=='Intereses distribuidos');
-  const aportesInt=aportes.filter(a=>a.tipo==='Intereses distribuidos');
-  const totalCap=aportes.reduce((s,a)=>s+(+a.monto),0);
+  const aportesInt =aportes.filter(a=>a.tipo==='Intereses distribuidos');
+
+  // ── Fecha de ingreso de cada socio ─────────────────
+  // Es la fecha del PRIMER aporte base registrado para ese socio.
+  // Si un socio no tiene aportes base, se toma '9999-12-31' para que no reciba nada.
+  const fechaIngreso={};
+  socios.forEach(soc=>{
+    const ap=aportesBase.filter(a=>a.socio===soc).map(a=>a.fecha).filter(Boolean).sort();
+    fechaIngreso[soc]=ap.length>0?ap[0]:'9999-12-31';
+  });
+
+  // ── Totales de capital ──────────────────────────────
+  const totalCap    =aportes.reduce((s,a)=>s+(+a.monto),0);
   const totalCapBase=aportesBase.reduce((s,a)=>s+(+a.monto),0);
-  // Capital activamente prestado: PENDIENTES + VENCIDOS (el dinero ya salió de caja)
-  const prestAct=prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE'||estadoEfectivo(p)==='VENCIDO').reduce((s,p)=>s+(+p.monto),0);
+
+  // ── Caja disponible ────────────────────────────────
+  const prestAct=prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE'||estadoEfectivo(p)==='VENCIDO')
+                           .reduce((s,p)=>s+(+p.monto),0);
   const cajaCap=totalCap-prestAct;
-  const intCob=prestamos.filter(p=>estadoEfectivo(p)==='PAGADO').reduce((s,p)=>s+getInt(p),0);
-  // Sin reserva — intereses completos se distribuyen
-  const dist=intCob;
-  // Intereses ya distribuidos (registrados como aportes de intereses)
+
+  // ── Intereses cobrados (préstamos PAGADOS) ─────────
+  const prestPagados=prestamos.filter(p=>estadoEfectivo(p)==='PAGADO');
+  const intCob=prestPagados.reduce((s,p)=>s+getInt(p),0);
+  const dist=intCob; // sin reserva
+
+  // ── Intereses ya distribuidos ──────────────────────
   const intDistribuidos=aportesInt.reduce((s,a)=>s+(+a.monto),0);
   const intPendDist=Math.max(0,dist-intDistribuidos);
-  const socData=socios.map(soc=>{
-    const tot=aportesBase.filter(a=>a.socio===soc).reduce((s,a)=>s+(+a.monto),0);
-    const pp=totalCapBase>0?tot/totalCapBase:0;
-    const gan=dist*pp;
-    const intYaDist=aportesInt.filter(a=>a.socio===soc).reduce((s,a)=>s+(+a.monto),0);
-    const rec=pagos.filter(p=>p.socio===soc).reduce((s,p)=>s+(+p.monto),0);
-    return{socio:soc,totalAp:aportesBase.filter(a=>a.socio===soc).reduce((s,a)=>s+(+a.monto),0),
-      pct:pp,ganado:gan,intYaDist,recibido:rec,pendiente:gan-intYaDist};
+
+  // ── Ganancia por socio con lógica temporal ─────────
+  // Para cada préstamo PAGADO, calculamos su interés y lo repartimos
+  // SOLO entre los socios que ya habían ingresado ANTES de la fecha
+  // en que se otorgó ese préstamo (p.fecha).
+  // El porcentaje de cada socio elegible = su capital base / capital base
+  // total de los socios elegibles en esa fecha.
+  const ganPorSocio={};
+  socios.forEach(soc=>{ ganPorSocio[soc]=0; });
+
+  prestPagados.forEach(p=>{
+    const fechaPrest=p.fecha||'0000-01-01'; // fecha en que se otorgó el préstamo
+    const interes=getInt(p);
+    if(interes<=0) return;
+
+    // Socios elegibles: los que ya habían ingresado en esa fecha
+    const elegibles=socios.filter(soc=>fechaIngreso[soc]<=fechaPrest);
+    if(elegibles.length===0) return;
+
+    // Capital base de cada elegible en esa fecha
+    // (solo aportes base con fecha <= fechaPrest)
+    const capElegibles={};
+    let totalCapElegibles=0;
+    elegibles.forEach(soc=>{
+      const cap=aportesBase.filter(a=>a.socio===soc&&(a.fecha||'0000-01-01')<=fechaPrest)
+                            .reduce((s,a)=>s+(+a.monto),0);
+      capElegibles[soc]=cap;
+      totalCapElegibles+=cap;
+    });
+
+    if(totalCapElegibles<=0) return;
+
+    // Repartir el interés proporcionalmente
+    elegibles.forEach(soc=>{
+      ganPorSocio[soc]+=(capElegibles[soc]/totalCapElegibles)*interes;
+    });
   });
-  return{totalCap,totalCapBase,prestAct,cajaCap,intCob,reserva:0,dist,
+
+  // ── Construir datos por socio ──────────────────────
+  // totalAp = aportes BASE + intereses ya distribuidos (ambos son capital real del socio)
+  const socData=socios.map(soc=>{
+    const apBase=aportesBase.filter(a=>a.socio===soc).reduce((s,a)=>s+(+a.monto),0);
+    const apIntAcum=aportesInt.filter(a=>a.socio===soc).reduce((s,a)=>s+(+a.monto),0);
+    const totalAp=apBase+apIntAcum; // capital real actual del socio
+
+    // % sobre capital total real (base + intereses distribuidos)
+    const pct=totalCap>0?totalAp/totalCap:0;
+
+    const gan=ganPorSocio[soc]||0;
+    const intYaDist=apIntAcum;
+    const rec=pagos.filter(p=>p.socio===soc).reduce((s,p)=>s+(+p.monto),0);
+    const pendiente=Math.max(0,gan-intYaDist);
+
+    return{socio:soc,totalAp,apBase,apIntAcum,pct,ganado:gan,intYaDist,recibido:rec,pendiente,
+      fechaIngreso:fechaIngreso[soc]==='9999-12-31'?null:fechaIngreso[soc]};
+  });
+
+  // % global mostrado en dashboard usa totalAp real
+  // recalcular pct global sobre totalCap
+  const totalApSocios=socData.reduce((s,x)=>s+x.totalAp,0);
+  socData.forEach(s=>{ s.pct=totalApSocios>0?s.totalAp/totalApSocios:0; });
+
+  return{
+    totalCap,totalCapBase,prestAct,cajaCap,intCob,reserva:0,dist,
     intDistribuidos,intPendDist,
-    pagados:prestamos.filter(p=>estadoEfectivo(p)==='PAGADO').length,
+    pagados :prestamos.filter(p=>estadoEfectivo(p)==='PAGADO').length,
     pendientes:prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE').length,
-    vencidos:prestamos.filter(p=>estadoEfectivo(p)==='VENCIDO').length,
+    vencidos :prestamos.filter(p=>estadoEfectivo(p)==='VENCIDO').length,
     socios:socData,
-    // prestAct incluye PENDIENTES + VENCIDOS (dinero fuera de caja)
     prestActPendiente:prestamos.filter(p=>estadoEfectivo(p)==='PENDIENTE').reduce((s,p)=>s+(+p.monto),0),
-    prestActVencido:prestamos.filter(p=>estadoEfectivo(p)==='VENCIDO').reduce((s,p)=>s+(+p.monto),0)
+    prestActVencido  :prestamos.filter(p=>estadoEfectivo(p)==='VENCIDO').reduce((s,p)=>s+(+p.monto),0)
   };
 }
 function badge(p){const ef=estadoEfectivo(p);const m={PAGADO:'p',PENDIENTE:'pen',VENCIDO:'v'};return`<span class="badge badge-${m[ef]||'pen'}">${ef}</span>`;}
@@ -547,10 +617,13 @@ function renderDashboard(st){
         </div>`).join('')}
     </div>
     <div class="card"><div style="overflow-x:auto"><table>
-      <thead><tr><th>Socio</th><th class="r">Aportó</th><th class="r">% Capital</th><th class="r">Le Corresponde</th><th class="r">Ya Recibió</th><th class="r">Saldo</th></tr></thead>
+      <thead><tr><th>Socio</th><th class="r">Capital Total</th><th class="r">% Capital</th><th class="r">Le Corresponde</th><th class="r">Ya Recibió</th><th class="r">Saldo</th></tr></thead>
       <tbody>${st.socios.map((s,i)=>`<tr class="${i%2===0?'row-even':'row-alt'}">
         <td class="b" style="color:var(--navy)">${s.socio}</td>
-        <td class="r mono">${sol(s.totalAp)}</td>
+        <td class="r">
+          <span class="mono" style="font-weight:600">${sol(s.totalAp)}</span>
+          ${s.apIntAcum>0?`<br><span style="font-size:10px;color:var(--teal)">base ${sol(s.apBase)} + int. ${sol(s.apIntAcum)}</span>`:''}
+        </td>
         <td class="r"><div class="pct-bar-wrap"><div class="pct-bar-bg"><div class="pct-bar-fill" style="width:${(s.pct*100).toFixed(0)}%"></div></div><span style="font-size:11px;font-family:var(--mono)">${pctF(s.pct)}</span></div></td>
         <td class="r b mono" style="color:var(--green)">${sol(s.ganado)}</td>
         <td class="r mono" style="color:var(--teal)">${sol(s.recibido)}</td>
@@ -658,18 +731,22 @@ function renderDistribucion(st){
       </div>
     </div>
     <div class="card"><div style="overflow-x:auto"><table>
-      <thead><tr><th>Socio</th><th class="r">Capital Aportado</th><th class="r">%</th><th class="r">Le Corresponde</th><th class="r">Ya Distribuido</th><th class="r">Pendiente</th></tr></thead>
+      <thead><tr><th>Socio</th><th class="r">Capital Total</th><th class="r">Ingresó</th><th class="r">Le Corresponde</th><th class="r">Ya Distribuido</th><th class="r">Pendiente</th></tr></thead>
       <tbody>${st.socios.map((s,i)=>`<tr class="${i%2===0?'row-even':'row-alt'}">
         <td class="b" style="color:var(--navy)">${s.socio}</td>
-        <td class="r mono">${sol(s.totalAp)}</td>
-        <td class="r"><div class="pct-bar-wrap"><div class="pct-bar-bg"><div class="pct-bar-fill" style="width:${(s.pct*100).toFixed(0)}%"></div></div><span style="font-size:11px;font-family:var(--mono)">${pctF(s.pct)}</span></div></td>
+        <td class="r">
+          <span class="mono b">${sol(s.totalAp)}</span>
+          ${s.apIntAcum>0?`<br><span style="font-size:10px;color:var(--teal)">base ${sol(s.apBase)} + int. ${sol(s.apIntAcum)}</span>`:''}
+        </td>
+        <td class="r g" style="font-size:11px">${s.fechaIngreso||'—'}</td>
         <td class="r b mono" style="color:var(--green)">${sol(s.ganado)}</td>
         <td class="r mono" style="color:var(--teal)">${sol(s.intYaDist)}</td>
         <td class="r b mono" style="color:${s.pendiente>0?'var(--gold)':'var(--green)'}">${sol(s.pendiente)}</td>
       </tr>`).join('')}</tbody>
-      <tfoot><tr class="tfoot-row"><td>TOTAL</td><td class="r mono">${sol(st.socios.reduce((s,x)=>s+x.totalAp,0))}</td><td class="r">100%</td><td class="r mono">${sol(st.dist)}</td><td class="r mono">${sol(st.intDistribuidos)}</td><td class="r mono" style="color:#D4AF37">${sol(st.intPendDist)}</td></tr></tfoot>
+      <tfoot><tr class="tfoot-row"><td>TOTAL</td><td class="r mono">${sol(st.socios.reduce((s,x)=>s+x.totalAp,0))}</td><td></td><td class="r mono">${sol(st.dist)}</td><td class="r mono">${sol(st.intDistribuidos)}</td><td class="r mono" style="color:#D4AF37">${sol(st.intPendDist)}</td></tr></tfoot>
     </table></div></div>
     <div class="info-box info-blue" style="margin-top:14px">💡 Al hacer clic en <strong>"Distribuir ahora"</strong> se agrega automáticamente un aporte de tipo <em>"Intereses distribuidos"</em> a cada socio según su porcentaje. Esto aumenta su capital en la cooperativa.</div>
+    <div class="info-box info-gold" style="margin-top:8px">⏱️ <strong>Lógica temporal:</strong> cada préstamo reparte sus intereses solo entre los socios que ya estaban activos cuando ese préstamo fue otorgado. Un socio nuevo no recibe utilidades de préstamos anteriores a su ingreso.</div>
   </div>`;
 }
 
